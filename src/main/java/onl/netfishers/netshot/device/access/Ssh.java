@@ -39,6 +39,8 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.ProxySOCKS5;
+import com.jcraft.jsch.ProxyHTTP;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -462,6 +464,9 @@ public class Ssh extends Cli {
 			if (privateKey == null || publicKey == null) {
 				session.setPassword(password);
 			}
+			
+			setupProxy(session);
+		
 			// Disable Strict Key checking
 			session.setConfig("StrictHostKeyChecking", "no");
 			session.setConfig("kex", String.join(",", this.sshConfig.kexAlgorithms));
@@ -489,6 +494,48 @@ public class Ssh extends Cli {
 
 	}
 
+	/**
+	 * Check for JVM proxy variables and set SOCKS or HTTP proxy accordingly on the JSCH session.
+	 *
+	 * @param session the JSCH session
+	 */
+	private void setupProxy(Session session)
+	{
+		// Check for SOCKS proxy
+		String proxyHost = System.getProperty("socksProxyHost");
+		if (proxyHost != null) {
+			int proxyPort = 1080;
+			String strProxyPort = System.getProperty("socksProxyPort");
+			if (strProxyPort != null) {
+				try {
+					proxyPort = new Integer(strProxyPort).intValue();
+				}
+				catch(Exception e) {}
+			}
+
+			ProxySOCKS5 proxy = new ProxySOCKS5(proxyHost, proxyPort);
+			session.setProxy(proxy);	
+		}
+		else
+		{
+			// Check for HTTP Proxy
+			proxyHost = System.getProperty("http.proxyHost");
+			if (proxyHost != null) {
+				int proxyPort = 80;
+				String strProxyPort = System.getProperty("http.proxyPort");
+				if (strProxyPort != null) {
+					try {
+						proxyPort = new Integer(strProxyPort).intValue();
+					}
+					catch(Exception e) {}
+				}
+			
+				ProxyHTTP proxy = new ProxyHTTP(proxyHost, proxyPort);
+				session.setProxy(proxy);	
+			}
+		}
+	}
+	
 	/* (non-Javadoc)
 	 * @see onl.netfishers.netshot.device.access.Cli#disconnect()
 	 */
